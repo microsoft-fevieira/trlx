@@ -231,6 +231,8 @@ def flatten_dict(
 
 
 def get_tensor_stats(xs: torch.Tensor, mask: torch.Tensor, n: int):
+    xs = xs.double()
+    mask = mask.double()
     mean = (xs * mask).sum() / n
     return dict(
         mean=mean,

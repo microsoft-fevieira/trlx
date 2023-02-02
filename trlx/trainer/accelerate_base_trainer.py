@@ -70,9 +70,10 @@ class AccelerateRLTrainer(BaseRLTrainer):
             num_gpus = "1gpu"
         else:
             num_gpus = f"{self.accelerator.num_processes}gpus"
-        branch = get_git_tag()[0]
+        # branch = get_git_tag()[0]
 
-        run_name = "/".join([script_name, model_name, num_gpus]) + f":{branch}"
+        # run_name = "/".join([script_name, model_name, num_gpus]) + f":{branch}"
+        run_name = "/".join([script_name, model_name, num_gpus])
 
         if self.accelerator.is_main_process and not ray.is_initialized():
             config_dict = self.config.to_dict()
@@ -80,37 +81,32 @@ class AccelerateRLTrainer(BaseRLTrainer):
             config_dict["distributed"] = dist_config
             init_trackers_kwargs = {}
 
-            if config.train.tracker == "wandb":
+            config_dict_flat = flatten_dict(
+                config_dict
+            )  # flatten config for tensorboard, split list in hparams into flatten config
+            config_dict_flat["optimizer/kwargs/beta_1"] = config_dict_flat[
+                "optimizer/kwargs/betas"
+            ][0]
+            config_dict_flat["optimizer/kwargs/beta_2"] = config_dict_flat[
+                "optimizer/kwargs/betas"
+            ][1]
+            config_dict_flat.pop("optimizer/kwargs/betas", None)
+
+            if config.train.tracker in ("wandb", "all"):
                 init_trackers_kwargs["wandb"] = {
                     "name": run_name,
                     "entity": self.config.train.entity_name,
                     "group": self.config.train.group_name,
-                    "tags": ["/".join(get_git_tag())],
+                    # "tags": ["/".join(get_git_tag())],
+                    "tags": [],
                     "mode": "disabled" if os.environ.get("debug", False) else "online",
                 }
 
-                self.accelerator.init_trackers(
-                    project_name=self.config.train.project_name,
-                    config=config_dict,
-                    init_kwargs=init_trackers_kwargs,
-                )
-            elif config.train.tracker == "tensorboard":
-                # flatten config for tensorboard, split list in hparams into flatten config
-                config_dict_flat = flatten_dict(config_dict)
-                config_dict_flat["optimizer/kwargs/beta_1"] = config_dict_flat["optimizer/kwargs/betas"][0]
-                config_dict_flat["optimizer/kwargs/beta_2"] = config_dict_flat["optimizer/kwargs/betas"][1]
-                config_dict_flat.pop("optimizer/kwargs/betas", None)
-                self.accelerator.init_trackers(
-                    project_name=self.config.train.project_name,
-                    config=config_dict_flat,
-                )
-            elif config.train.tracker is None:
-                self.accelerator.init_trackers(project_name=self.config.train.project_name)
-            else:
-                raise ValueError(
-                    f"Only supported trackers are `wandb` and `tensorboard`. Got: `{config.train.tracker}`. "
-                    "Set `tracker` to `None` to disable tracking."
-                )
+            self.accelerator.init_trackers(
+                project_name=self.config.train.project_name,
+                config=config_dict_flat,
+                init_kwargs=init_trackers_kwargs,
+            )
 
     def setup_model(self):
         """
