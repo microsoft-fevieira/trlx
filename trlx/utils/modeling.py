@@ -229,12 +229,18 @@ def flatten_dict(
     parent_key: str = "",
     sep: str = "/",
 ) -> dict:
-    # From: https://stackoverflow.com/a/6027615
     items = []
     for k, v in d.items():
-        new_key = parent_key + sep + k if parent_key else k
+        new_key = f"{parent_key}{sep}{k}" if parent_key else k
         if isinstance(v, MutableMapping):
             items.extend(flatten_dict(v, new_key, sep=sep).items())
+        elif isinstance(v, list):
+            for i, item in enumerate(v):
+                sub_key = f"{new_key}{sep}{i}"
+                if isinstance(item, MutableMapping):
+                    items.extend(flatten_dict(item, sub_key, sep=sep).items())
+                else:
+                    items.append((sub_key, item))
         else:
             items.append((new_key, v))
     return dict(items)
