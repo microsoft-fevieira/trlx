@@ -104,6 +104,7 @@ class AccelerateRLTrainer(BaseRLTrainer):
             elif config.train.tracker in ["tensorboard", "all"]:
                 # flatten config for tensorboard, split list in hparams into flatten config
                 config_dict_flat = flatten_dict(config_dict)
+                print(config_dict_flat)
                 self.accelerator.init_trackers(
                     project_name=self.config.train.project_name,
                     config=config_dict_flat,
